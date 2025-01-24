@@ -12,6 +12,7 @@ public class Player : MonoBehaviour
     [Header("Hareketler")]
     [SerializeField] private float moveSpeed;
     [SerializeField] private float jumpForce;
+    [SerializeField] private float doubleJumpForce;
 
     [Header("Hareket Collision larý")]
     [SerializeField] private float groundCheckDistance;
@@ -21,6 +22,8 @@ public class Player : MonoBehaviour
     private bool isFacingRight = true;
     private int facingDirection = 1;
 
+    private bool canDoubleJump;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -29,6 +32,9 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
+        if (isGrounded)
+            canDoubleJump = true;
+
         CollisionAyarlari();
         InputAyarlari();
         HareketAyarlari();
@@ -41,16 +47,23 @@ public class Player : MonoBehaviour
     {
         xInput = Input.GetAxisRaw("Horizontal");
 
-        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
+        if (Input.GetKeyDown(KeyCode.Space))
         {
-            Jump();
+            if (isGrounded)
+            {
+                Jump();
+            }
+            else if (canDoubleJump)
+            {
+                DoubleJump();
+                canDoubleJump = false;
+            }
         }
     }
 
-    private void Jump()
-    {
-        rb.velocity = new Vector2(rb.velocity.x, jumpForce);
-    }
+    private void Jump() => rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+
+    private void DoubleJump() => rb.velocity = new Vector2(rb.velocity.x, doubleJumpForce);
 
     private void CollisionAyarlari()
     {
