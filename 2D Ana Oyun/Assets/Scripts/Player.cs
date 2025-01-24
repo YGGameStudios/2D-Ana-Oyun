@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -12,6 +13,14 @@ public class Player : MonoBehaviour
     [SerializeField] private float moveSpeed;
     [SerializeField] private float jumpForce;
 
+    [Header("Hareket Collision larý")]
+    [SerializeField] private float groundCheckDistance;
+    [SerializeField] private LayerMask whatIsGround;
+    private bool isGrounded;
+
+    private bool isFacingRight = true;
+    private int facingDirection = 1;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -20,24 +29,58 @@ public class Player : MonoBehaviour
 
     private void Update()
     {
-        xInput = Input.GetAxisRaw("Horizontal");
-
+        CollisionAyarlari();
+        InputAyarlari();
         HareketAyarlari();
+        FlipAyarlari();
         AnimasyonAyarlari();
 
-        if (Input.GetKeyDown(KeyCode.Space))
+    }
+
+    private void InputAyarlari()
+    {
+        xInput = Input.GetAxisRaw("Horizontal");
+
+        if (Input.GetKeyDown(KeyCode.Space) && isGrounded)
         {
-            rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+            Jump();
         }
+    }
+
+    private void Jump()
+    {
+        rb.velocity = new Vector2(rb.velocity.x, jumpForce);
+    }
+
+    private void CollisionAyarlari()
+    {
+        isGrounded = Physics2D.Raycast(transform.position, Vector2.down, groundCheckDistance, whatIsGround);
     }
 
     private void AnimasyonAyarlari()
     {
         anim.SetFloat("xMove", rb.velocity.x);
+        anim.SetFloat("yMove", rb.velocity.y);
+        anim.SetBool("isGrounded", isGrounded);
     }
 
     private void HareketAyarlari()
     {
         rb.velocity = new Vector2(xInput * moveSpeed, rb.velocity.y);
+    }
+
+    private void FlipAyarlari()
+    {
+        if (rb.velocity.x < 0f && isFacingRight || rb.velocity.x > 0 && !isFacingRight)
+        {
+            transform.Rotate(0f, 180f, 0f);
+            isFacingRight = !isFacingRight;
+            facingDirection = facingDirection * -1;
+        }
+    }
+
+    private void OnDrawGizmos()
+    {
+        Gizmos.DrawLine(transform.position, new Vector2(transform.position.x, transform.position.y - groundCheckDistance));
     }
 }
