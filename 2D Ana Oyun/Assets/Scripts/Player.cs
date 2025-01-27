@@ -27,6 +27,11 @@ public class Player : MonoBehaviour
 
     private bool canDoubleJump;
 
+    [Header("Duvar Etkisimleri")]
+    [SerializeField] private float wallJumpDuration = 0.6f;
+    [SerializeField] private Vector2 wallJumpForce;
+    private bool isWallJumping;
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
@@ -79,6 +84,12 @@ public class Player : MonoBehaviour
     private void Jump() => rb.velocity = new Vector2(rb.velocity.x, jumpForce);
 
     private void DoubleJump() => rb.velocity = new Vector2(rb.velocity.x, doubleJumpForce);
+
+    private void WallJump()
+    {
+        isWallJumping = true;
+        rb.velocity = new Vector2(wallJumpForce.x * -facingDirection, wallJumpForce.y);
+    }
 
     private void CollisionAyarlari()
     {
