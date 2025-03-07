@@ -10,7 +10,7 @@ public class Checkpoint : MonoBehaviour
     [SerializeField] private bool canBeReactivated;
     private void Awake()
     {
-        anim = GetComponent<Animator>();
+        anim= GetComponent<Animator>(); 
     }
 
     private void Start()

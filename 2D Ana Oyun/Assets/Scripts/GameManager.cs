@@ -43,10 +43,10 @@ public class GameManager : MonoBehaviour
         totalFruits = allFruits.Length;
     }
 
-    public void UpdateRespawnPosition(Transform newRespawnPoint) => respawnPoint = newRespawnPoint;
+    public void UpdateRespawnPosition(Transform newRespawnPoint) => respawnPoint = newRespawnPoint; 
 
     public void RespawnPlayer() => StartCoroutine(RespawnCourutine());
-
+    
     private IEnumerator RespawnCourutine()
     {
         yield return new WaitForSeconds(respawnDelay);
@@ -70,7 +70,7 @@ public class GameManager : MonoBehaviour
 
         yield return new WaitForSeconds(delay);
 
-        GameObject newObject = Instantiate(prefab, newPosition, Quaternion.identity);
+        GameObject newObject = Instantiate(prefab,newPosition, Quaternion.identity);
     }
 
     private void LoadTheEndScene() => SceneManager.LoadScene("TheEnd");

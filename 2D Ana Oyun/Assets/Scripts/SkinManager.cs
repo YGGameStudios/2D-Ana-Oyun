@@ -23,6 +23,6 @@ public class SkinManager : MonoBehaviour
     }
 
     public void SetSkinId(int id) => choosenSkinId = id;
-
+    
     public int GetSkinId() => choosenSkinId;
 }

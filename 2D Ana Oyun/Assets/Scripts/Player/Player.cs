@@ -29,7 +29,7 @@ public class Player : MonoBehaviour
     [SerializeField] Vector2 knockbackPower;
     bool isknocked;
 
-
+ 
     [Header("Collision info")]
     [SerializeField] float groundCheckDistance;
     [SerializeField] LayerMask whatIsGround;
@@ -77,7 +77,7 @@ public class Player : MonoBehaviour
         UpdateSkin();
     }
 
-
+   
     void Update()
     {
         UpdateAirBorneStatus();
@@ -155,7 +155,7 @@ public class Player : MonoBehaviour
             return;
 
         StartCoroutine(KnockbackRoutine());
-
+        
         rb.velocity = new Vector2(knockbackPower.x * knockbackDir, knockbackPower.y);
     }
 
@@ -177,7 +177,7 @@ public class Player : MonoBehaviour
 
         if (canWallSlide == false)
             return;
-
+        
         rb.velocity = new Vector2(rb.velocity.x, rb.velocity.y * yModifer);
     }
 
@@ -269,7 +269,7 @@ public class Player : MonoBehaviour
             DoubleJump();
         }
 
-        CancelCayoteJump();
+        CancelCayoteJump(); 
     }
 
     private void Jump()
@@ -345,7 +345,7 @@ public class Player : MonoBehaviour
 
     public void Die()
     {
-        GameObject newDeathVfx = Instantiate(deathVfx, transform.position, Quaternion.identity);
+        GameObject newDeathVfx = Instantiate(deathVfx, transform.position, Quaternion.identity);  
 
         Destroy(gameObject);
     }

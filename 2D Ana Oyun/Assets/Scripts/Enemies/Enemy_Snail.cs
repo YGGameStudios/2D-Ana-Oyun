@@ -67,7 +67,7 @@ public class Enemy_Snail : Enemy
         {
             base.Die();
         }
-
+        
     }
 
     private void CreateBody()

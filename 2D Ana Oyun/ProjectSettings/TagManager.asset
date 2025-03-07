@@ -11,9 +11,9 @@ TagManager:
   - Ground
   - Water
   - UI
+  - 
   - Enemy
-  - 
-  - 
+  - Player
   - 
   - 
   - 
@@ -41,21 +41,21 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
-  - name: Background
-    uniqueID: 3069233129
-    locked: 0
-  - name: Ground
-    uniqueID: 1748822803
+  - name: BackGround
+    uniqueID: 3367597329
     locked: 0
   - name: Traps
-    uniqueID: 3396955131
+    uniqueID: 2549362073
+    locked: 0
+  - name: Ground
+    uniqueID: 4024454635
     locked: 0
   - name: Enemy
-    uniqueID: 3114328553
+    uniqueID: 997165471
     locked: 0
-  - name: Items
-    uniqueID: 2667710163
+  - name: "\u0130tems"
+    uniqueID: 3345714547
     locked: 0
   - name: Player
-    uniqueID: 649340971
+    uniqueID: 152371987
     locked: 0

@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public enum FruitType { Apple, Banana, Cherry, Kiwi, Melon, Orange, Pineapple, Strawberry }
+public enum FruitType { Apple, Banana, Cherry, Kiwi, Melon, Orange, Pineapple, Strawberry}
 
 public class Fruit : MonoBehaviour
 {
@@ -37,7 +37,7 @@ public class Fruit : MonoBehaviour
         anim.SetFloat("fruitindex", randomIndex);
     }
 
-    private void UpdateFruitVisuals() => anim.SetFloat("fruitIndex", (int)fruitType);
+    private void UpdateFruitVisuals() => anim.SetFloat("fruitindex", (int)fruitType);
 
     private void OnTriggerEnter2D(Collider2D collision)
     {
@@ -46,7 +46,7 @@ public class Fruit : MonoBehaviour
             gameManager.AddFruit();
             Destroy(gameObject);
 
-            GameObject newFx = Instantiate(pickupVfx, transform.position, Quaternion.identity);
+            GameObject newFx = Instantiate(pickupVfx, transform.position,Quaternion.identity);
             Destroy(newFx, .5f);
         }
     }

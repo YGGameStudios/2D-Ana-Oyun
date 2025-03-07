@@ -43,8 +43,8 @@ public class Enemy : MonoBehaviour
     //***************************************************************************************************************
     protected virtual void Awake()
     {
-        _animator = GetComponent<Animator>();
-        rb = GetComponent<Rigidbody2D>();
+        _animator= GetComponent<Animator>();
+        rb= GetComponent<Rigidbody2D>();
         _colliders2d = GetComponentsInChildren<Collider2D>();
     }
 
@@ -72,7 +72,7 @@ public class Enemy : MonoBehaviour
 
         idleTimer -= Time.deltaTime;
 
-        if (isDead)
+        if(isDead)
             HandleDeathRotation();
     }
 
@@ -103,11 +103,11 @@ public class Enemy : MonoBehaviour
         {
             collider.enabled = false;
         }
-
+        
         _animator.SetTrigger("hit");
         rb.velocity = new Vector2(rb.velocity.x, deathImpactSpeed);
 
-        isDead = true;
+        isDead= true;
 
         if (Random.Range(0, 100) < 50)
             deathRotationDirection = deathRotationDirection * -1;

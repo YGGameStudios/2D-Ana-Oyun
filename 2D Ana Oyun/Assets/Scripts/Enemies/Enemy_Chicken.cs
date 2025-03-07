@@ -21,7 +21,7 @@ public class Enemy_Chicken : Enemy
 
         if (isPlayerDetected)
         {
-            canMove = true;
+            canMove= true;
             aggroTimer = aggroDuration;
         }
 
