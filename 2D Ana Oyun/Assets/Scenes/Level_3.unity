@@ -8832,6 +8832,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: 'Checkpoint '
       objectReference: {fileID: 0}
+    - target: {fileID: 7240094623744705219, guid: 2a1c2a4718f878e4b8c8f9d6b752f286, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 7240094623744705279, guid: 2a1c2a4718f878e4b8c8f9d6b752f286, type: 3}
       propertyPath: m_RootOrder
       value: 10
