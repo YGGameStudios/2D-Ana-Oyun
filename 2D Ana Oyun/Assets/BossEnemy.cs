@@ -5,7 +5,7 @@ using UnityEngine;
 public class BossEnemy : BaseEnemy
 {
     [Header("Boss Settings")]
-    public Transform startPosition; // Boss'un başlangıç pozisyonu
+    public Vector3 startPosition; // Boss'un başlangıç pozisyonu
     public Transform playerTarget;
     
     [Header("Boss Stats")]
@@ -48,7 +48,7 @@ public class BossEnemy : BaseEnemy
         
         // Başlangıç pozisyonunu kaydet
         if (startPosition == null)
-            startPosition = transform;
+            startPosition = transform.position;
             
         playerTarget = GameObject.FindWithTag("Player")?.transform;
         
@@ -156,7 +156,7 @@ public class BossEnemy : BaseEnemy
         StartPhase1();
         
         // Başlangıç pozisyonuna git
-        transform.position = startPosition.position;
+        transform.position = startPosition;
     }
     
     private void KillBoss()
@@ -188,7 +188,7 @@ public class BossEnemy : BaseEnemy
         Debug.Log("BOSS PHASE 1 STARTED!");
         
         // Başlangıç pozisyonuna git
-        transform.position = startPosition.position;
+        transform.position = startPosition;
     }
     
     private void Phase1Behavior()
@@ -243,8 +243,10 @@ public class BossEnemy : BaseEnemy
         
         // Player'a doğru dash yap
         Vector2 dashDirection = ((Vector2)playerTarget.position - (Vector2)transform.position).normalized;
+        dashDirection.y += 0.6f; // Biraz yukarıya doğru git
+        dashDirection = dashDirection.normalized; // Normalize et
         float dashSpeed = 12f;
-        float dashDuration = 1f;
+        float dashDuration = 1.3f;
         float dashTimer = 0f;
         
         while (dashTimer < dashDuration)
@@ -368,17 +370,17 @@ public class BossEnemy : BaseEnemy
     {
         Debug.Log("Boss returning to start position!");
         
-        Vector2 returnDirection = ((Vector2)startPosition.position - (Vector2)transform.position).normalized;
+        Vector2 returnDirection = ((Vector2)startPosition - (Vector2)transform.position).normalized;
         float returnSpeed = 8f;
         
-        while (Vector2.Distance(transform.position, startPosition.position) > 0.5f)
+        while (Vector2.Distance(transform.position, startPosition) > 0.5f)
         {
             transform.position += (Vector3)returnDirection * returnSpeed * Time.deltaTime;
-            returnDirection = ((Vector2)startPosition.position - (Vector2)transform.position).normalized;
+            returnDirection = ((Vector2)startPosition - (Vector2)transform.position).normalized;
             yield return null;
         }
         
-        transform.position = startPosition.position;
+        transform.position = startPosition;
     }
     
     // ========== PHASE 2 ==========
