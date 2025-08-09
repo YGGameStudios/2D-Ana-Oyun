@@ -37,10 +37,34 @@ public class BossEnemy : BaseEnemy
     // Attack patterns
     private string[] meleeAttacks = { "upper", "lower", "spin" };
     private int fireballsShot = 0;
-    
+    private string currentMeleeAnim = ""; // aktif oynayan melee anim referansı
+
+    // ÜST VE ALT MELEE SALDIRILARI
+    [Header("Melee Attack Settings")] 
+    // Windup kaldırıldı: doğrudan saldırı
+    public float upperAttackRange = 3f;
+    public float lowerAttackRange = 3f;
+    public float upperAttackDamage = 35f;
+    public float lowerAttackDamage = 30f;
+    public float meleeReturnToIdleDelay = 0.1f; // Saldırı bitince idle'a dönmeden önce ufak bekleme
+
+    [Header("Animation")] 
+    [SerializeField] private Animator animator; // Boss animator
+    [SerializeField] private string idleAnim = "BossIdle";
+    [SerializeField] private string hurtAnim = "BossHurt";
+    [SerializeField] private string deathAnim = "BossDeath";
+
     protected override void Start()
     {
         base.Start();
+        if (animator == null)
+        {
+            animator = GetComponentInChildren<Animator>();
+            if (animator == null)
+            {
+                Debug.LogWarning("BossEnemy: Animator not found.");
+            }
+        }
         
         enemyName = "Boss Enemy";
         maxHealth = phase1Health;
@@ -265,33 +289,68 @@ public class BossEnemy : BaseEnemy
     
     private IEnumerator PerformMeleeCombo()
     {
-        int attackCount = Random.Range(2, 4); // 2-3 saldırı
-        
+        int attackCount = Random.Range(2, 3); // Basit tut: 2 saldırı
         for (int i = 0; i < attackCount; i++)
         {
-            string attackType = meleeAttacks[Random.Range(0, meleeAttacks.Length)];
-            yield return StartCoroutine(PerformMeleeAttack(attackType));
-            
-            if (isStunned) break; // Parry yediyse dur
-            
-            yield return new WaitForSeconds(0.5f); // Saldırılar arası bekleme
+            // Rastgele üst / alt
+            bool doUpper = Random.value > 0.5f;
+            if (doUpper)
+                yield return StartCoroutine(PerformUpperAttack());
+            else
+                yield return StartCoroutine(PerformLowerAttack());
+
+            if (isStunned) break;
+            yield return new WaitForSeconds(0.4f);
         }
     }
-    
-    private IEnumerator PerformMeleeAttack(string attackType)
+
+    private IEnumerator PerformUpperAttack()
     {
-        Debug.Log($"Boss performing {attackType} attack!");
-        
-        if (attackType == "spin")
+        PlayMeleeAnimation("BossUpperAttack");
+        yield return StartCoroutine(ResolveMeleeHit(upperAttackRange, upperAttackDamage, true));
+        if (meleeReturnToIdleDelay > 0f) yield return new WaitForSeconds(meleeReturnToIdleDelay);
+        PlayMeleeAnimation(idleAnim);
+    }
+
+    private IEnumerator PerformLowerAttack()
+    {
+        PlayMeleeAnimation("BossLowerAttack");
+        yield return StartCoroutine(ResolveMeleeHit(lowerAttackRange, lowerAttackDamage, false));
+        if (meleeReturnToIdleDelay > 0f) yield return new WaitForSeconds(meleeReturnToIdleDelay);
+        PlayMeleeAnimation(idleAnim);
+    }
+
+    private IEnumerator ResolveMeleeHit(float range, float damage, bool isUpper)
+    {
+        // Basit dairesel mesafe kontrolü
+        if (playerTarget != null && Vector2.Distance(transform.position, playerTarget.position) <= range)
         {
-            yield return StartCoroutine(PerformSpinAttack());
+            PlayerController player = playerTarget.GetComponent<PlayerController>();
+            if (player != null)
+            {
+                string hitType = isUpper ? "upper" : "lower";
+                player.TakeDamage(damage, hitType);
+            }
+        }
+        yield return null;
+    }
+
+    private void PlayMeleeAnimation(string animName)
+    {
+        if (currentMeleeAnim == animName) return;
+        currentMeleeAnim = animName;
+        if (animator != null)
+        {
+            animator.Play(animName);
         }
         else
         {
-            // Normal saldırı (upper veya lower) - döner saldırı
-            yield return StartCoroutine(PerformSpinAttack(attackType, false));
+            Debug.Log($"(No Animator) Would play anim: {animName}");
         }
     }
+
+    // Eski generic melee attack fonksiyonları (PerformMeleeAttack / PerformSpinAttack) kullanılıyorsa
+    // bunları artık iki parçalı sisteme geçiş için basitleştiriyoruz veya ileride tamamen kaldırılabilir
     
     private IEnumerator PerformSpinAttack(string attackType = "spin", bool isFullSpinAttack = true)
     {
