@@ -4,6 +4,12 @@ using UnityEngine;
 
 public class BossEnemy : BaseEnemy
 {
+    [Header("Animations")]
+    public Animator animator;
+    public string idleAnim = "BossIdle";
+    public string hurtAnim = "BossHurt";
+    public string deathAnim = "BossDeath";
+
     [Header("Boss Settings")]
     public Vector3 startPosition; // Boss'un başlangıç pozisyonu
     public Transform playerTarget;
@@ -17,42 +23,61 @@ public class BossEnemy : BaseEnemy
     public GameObject fireballPrefab;
     public float fireballCooldown = 2f;
     public int fireballCount = 5; // Kaç ateş topu atacak
+    // Ek: Kırmızı/Mavi fireball ve interval aralığı
+    [Header("Ranged Fireballs")]
+    public GameObject redFireballPrefab;
+    public GameObject blueFireballPrefab;
+    public Vector2 phase1FireballIntervalRange = new Vector2(0.5f, 1.0f);
+    private float nextFireballTime = 0f;
+    public int fireballsBeforeDashMin = 4;
+    public int fireballsBeforeDashMax = 7;
+    private int targetFireballsBeforeDash = 5;
+
+    [Header("Melee Parry Settings")] 
+    public KeyCode upperParryKey = KeyCode.Q; // L1
+    public KeyCode lowerParryKey = KeyCode.E; // R1
+    [Range(0f,1f)] public float blockDamageRatio = 0.3f;
+    public float parryStunDurationPhase1 = 1f;
+    public float parryStunDurationPhase2 = 1f;
+    public int comboRequiredForStun = 3; // Kaç başarılı parry gerekli
     
     [Header("Phase 2 - Melee + Minions")]
     public GameObject minionPrefab;
     public float minionSpawnCooldown = 8f;
     
     [Header("Phase 3 - Enhanced")]
-    public int comboRequiredForStun = 3; // Kaç başarılı parry gerekli
-    
-    // Boss state
-    private int currentPhase = 1;
+    public float spinChargeDuration = 3f;
+    public float spinDuration = 2f;
+    public float spinRadius = 4f;
+    public float spinDamage = 50f;
+    public float spinPhase3ExtraSpeedTowardsPlayer = 1.5f; // Phase3 homing
+
+    [Header("Phase Control")]
+    public bool phase1Invulnerable = false; // İstenirse aktif edilebilir
+
+    [Header("Phase Transition Animation Hooks")] 
+    public string phase2TransitionAnim = "BossPhase2Transition";
+    public string phase3TransitionAnim = "BossPhase3Transition";
+
+    // Internal flags
+    private bool performingMeleeSequence = false;
+    private bool doingSpin = false;
     private bool isStunned = false;
     private bool isCharging = false;
     private bool isSpinning = false;
-    private float lastFireballTime = 0f;
-    private float lastMinionSpawnTime = 0f;
+    private int currentPhase = 1;
     private int currentComboCount = 0;
-    
-    // Attack patterns
-    private string[] meleeAttacks = { "upper", "lower", "spin" };
     private int fireballsShot = 0;
-    private string currentMeleeAnim = ""; // aktif oynayan melee anim referansı
 
-    // ÜST VE ALT MELEE SALDIRILARI
-    [Header("Melee Attack Settings")] 
-    // Windup kaldırıldı: doğrudan saldırı
-    public float upperAttackRange = 3f;
-    public float lowerAttackRange = 3f;
-    public float upperAttackDamage = 35f;
-    public float lowerAttackDamage = 30f;
-    public float meleeReturnToIdleDelay = 0.1f; // Saldırı bitince idle'a dönmeden önce ufak bekleme
+    [Header("Melee Settings")]
+    public float upperAttackRange = 2.5f;
+    public float lowerAttackRange = 2.5f;
+    public float upperAttackDamage = 20f;
+    public float lowerAttackDamage = 20f;
+    public float meleeReturnToIdleDelay = 0.15f;
 
-    [Header("Animation")] 
-    [SerializeField] private Animator animator; // Boss animator
-    [SerializeField] private string idleAnim = "BossIdle";
-    [SerializeField] private string hurtAnim = "BossHurt";
-    [SerializeField] private string deathAnim = "BossDeath";
+    // Timers
+    private float nextMinionSpawnTime = 0f;
 
     protected override void Start()
     {
@@ -71,7 +96,7 @@ public class BossEnemy : BaseEnemy
         currentHealth = maxHealth;
         
         // Başlangıç pozisyonunu kaydet
-        if (startPosition == null)
+        if (startPosition == Vector3.zero)
             startPosition = transform.position;
             
         playerTarget = GameObject.FindWithTag("Player")?.transform;
@@ -213,95 +238,98 @@ public class BossEnemy : BaseEnemy
         
         // Başlangıç pozisyonuna git
         transform.position = startPosition;
+        // Ranged interval başlangıç ayarı
+        targetFireballsBeforeDash = Random.Range(fireballsBeforeDashMin, fireballsBeforeDashMax + 1);
+        nextFireballTime = Time.time + Random.Range(phase1FireballIntervalRange.x, phase1FireballIntervalRange.y);
     }
     
     private void Phase1Behavior()
     {
-        // Sürekli ateş topu at
-        if (Time.time - lastFireballTime >= fireballCooldown)
+        // Random aralıklarla ateş topu at
+        if (Time.time >= nextFireballTime)
         {
-            ShootFireball();
-            lastFireballTime = Time.time;
+            ShootFireballPhase1();
             fireballsShot++;
+            nextFireballTime = Time.time + Random.Range(phase1FireballIntervalRange.x, phase1FireballIntervalRange.y);
             
             // Belirli sayıda ateş topu attıktan sonra dash yap
-            if (fireballsShot >= fireballCount)
+            if (fireballsShot >= targetFireballsBeforeDash)
             {
                 StartCoroutine(DashToPlayerAndMelee());
                 fireballsShot = 0;
+                targetFireballsBeforeDash = Random.Range(fireballsBeforeDashMin, fireballsBeforeDashMax + 1);
             }
         }
     }
-    
-    private void ShootFireball()
+
+    private void ShootFireballPhase1()
     {
-        if (fireballPrefab == null || playerTarget == null) return;
+        if (playerTarget == null) return;
+        GameObject prefabToUse = null;
+        if (redFireballPrefab != null && blueFireballPrefab != null)
+            prefabToUse = (Random.value > 0.5f) ? redFireballPrefab : blueFireballPrefab;
+        else
+            prefabToUse = fireballPrefab; // geri dönüş
+        if (prefabToUse == null) return;
         
-        // Random yöne ateş topu at (player'ın genel yönüne ama tam değil)
         Vector2 playerDirection = ((Vector2)playerTarget.position - (Vector2)transform.position).normalized;
-        Vector2 randomDirection = playerDirection + new Vector2(Random.Range(-0.5f, 0.5f), Random.Range(-0.3f, 0.3f));
+        Vector2 randomDirection = playerDirection + new Vector2(Random.Range(-0.3f, 0.3f), Random.Range(-0.2f, 0.2f));
         
-        GameObject fireball = Instantiate(fireballPrefab, transform.position + (Vector3)randomDirection, Quaternion.identity);
-        
+        GameObject fireball = Instantiate(prefabToUse, transform.position, Quaternion.identity);
         Rigidbody2D rb = fireball.GetComponent<Rigidbody2D>();
         if (rb == null) rb = fireball.AddComponent<Rigidbody2D>();
-        
+        rb.gravityScale = 0f;
         rb.velocity = randomDirection.normalized * 8f;
         
         ProjectileController projectile = fireball.GetComponent<ProjectileController>();
         if (projectile == null) projectile = fireball.AddComponent<ProjectileController>();
-        
         projectile.damage = 25f;
         projectile.caster = this;
-        
         Destroy(fireball, 5f);
-        
-        Debug.Log("Boss shot fireball!");
     }
-    
+
     private IEnumerator DashToPlayerAndMelee()
     {
         if (playerTarget == null) yield break;
-        
-        Debug.Log("Boss dashing to player!");
-        
-        // Player'a doğru dash yap
-        Vector2 dashDirection = ((Vector2)playerTarget.position - (Vector2)transform.position).normalized;
-        dashDirection.y += 0.6f; // Biraz yukarıya doğru git
-        dashDirection = dashDirection.normalized; // Normalize et
+        performingMeleeSequence = true;
+        Debug.Log("Boss dashing to player for melee!");
+        Vector2 dashDir = ((Vector2)playerTarget.position - (Vector2)transform.position).normalized;
         float dashSpeed = 12f;
-        float dashDuration = 1.3f;
-        float dashTimer = 0f;
-        
-        while (dashTimer < dashDuration)
+        float dashTime = 1.0f;
+        float t=0f;
+        while (t<dashTime)
         {
-            transform.position += (Vector3)dashDirection * dashSpeed * Time.deltaTime;
-            dashTimer += Time.deltaTime;
+            transform.position += (Vector3)dashDir * dashSpeed * Time.deltaTime;
+            t += Time.deltaTime;
             yield return null;
         }
-        
-        // Yakın saldırılar yap
-        yield return StartCoroutine(PerformMeleeCombo());
-        
-        // Başlangıç pozisyonuna dön
-        yield return StartCoroutine(ReturnToStartPosition());
+        // Melee pattern: random sayıda saldırı + belki spin dahil
+        yield return StartCoroutine(ExecuteMeleePattern());
+        // Geri dön
+    yield return StartCoroutine(ReturnToStartPosition());
+        performingMeleeSequence = false;
     }
-    
-    private IEnumerator PerformMeleeCombo()
+
+    private IEnumerator ExecuteMeleePattern()
     {
-        int attackCount = Random.Range(2, 3); // Basit tut: 2 saldırı
-        for (int i = 0; i < attackCount; i++)
+        int meleeCount = Random.Range(2,4); // üst/alt saldırı adedi
+        bool attemptedSpin = false;
+        for (int i=0;i<meleeCount;i++)
         {
-            // Rastgele üst / alt
-            bool doUpper = Random.value > 0.5f;
-            if (doUpper)
+            bool upper = Random.value>0.5f;
+            if (upper)
                 yield return StartCoroutine(PerformUpperAttack());
             else
                 yield return StartCoroutine(PerformLowerAttack());
-
             if (isStunned) break;
-            yield return new WaitForSeconds(0.4f);
         }
+        // Spin yapma şansı
+        if (!isStunned && Random.value > 0.5f)
+        {
+            attemptedSpin = true;
+            yield return StartCoroutine(PerformSpinAttack());
+        }
+        if (attemptedSpin && isStunned) yield break;
     }
 
     private IEnumerator PerformUpperAttack()
@@ -322,332 +350,199 @@ public class BossEnemy : BaseEnemy
 
     private IEnumerator ResolveMeleeHit(float range, float damage, bool isUpper)
     {
-        // Basit dairesel mesafe kontrolü
+        // Parry/Block penceresi: vuruş anında değerlendir
         if (playerTarget != null && Vector2.Distance(transform.position, playerTarget.position) <= range)
         {
+            float finalDamage = damage;
+            bool perfectParry = false;
+            KeyCode key = isUpper ? upperParryKey : lowerParryKey;
+            if (Input.GetKeyDown(key))
+            {
+                perfectParry = true;
+                finalDamage = 0f;
+            }
+            else if (Input.GetKey(key))
+            {
+                finalDamage = damage * blockDamageRatio;
+            }
+            if (perfectParry)
+            {
+                // Faz 1-2: direkt sersemlet; Faz 3: combo say
+                if (currentPhase < 3)
+                {
+                    yield return StartCoroutine(ParryStunRoutine());
+                }
+                else
+                {
+                    OnPlayerParry();
+                }
+            }
             PlayerController player = playerTarget.GetComponent<PlayerController>();
-            if (player != null)
+            if (player != null && finalDamage > 0f)
             {
                 string hitType = isUpper ? "upper" : "lower";
-                player.TakeDamage(damage, hitType);
+                player.TakeDamage(finalDamage, hitType);
             }
         }
         yield return null;
     }
 
-    private void PlayMeleeAnimation(string animName)
+    private IEnumerator ParryStunRoutine()
     {
-        if (currentMeleeAnim == animName) return;
-        currentMeleeAnim = animName;
-        if (animator != null)
+        if (isStunned) yield break;
+        isStunned = true;
+        float dur = currentPhase==1 ? parryStunDurationPhase1 : parryStunDurationPhase2;
+        yield return new WaitForSeconds(dur);
+        isStunned = false;
+    }
+
+    private IEnumerator PerformSpinAttack(string attackType = "spin", bool isFullSpinAttack = true)
+    {
+        if (!isFullSpinAttack)
         {
-            animator.Play(animName);
+            yield break; // Basitleştirme: sadece full spin kullanıyoruz
         }
-        else
+        Debug.Log("Spin charge start");
+        isCharging = true;
+        float charge = 0f;
+        while (charge < spinChargeDuration)
         {
-            Debug.Log($"(No Animator) Would play anim: {animName}");
+            charge += Time.deltaTime;
+            // İstersen charge anim event
+            yield return null;
+        }
+        if (isStunned){ isCharging=false; yield break; }
+        Debug.Log("Spin unleashed");
+        isSpinning = true;
+        isCharging = false;
+        float timer = 0f;
+        while (timer < spinDuration)
+        {
+            transform.Rotate(0f,0f,720f*Time.deltaTime);
+            if (currentPhase==3 && playerTarget!=null)
+            {
+                // Phase3: hafif homing
+                Vector2 dir = ((Vector2)playerTarget.position - (Vector2)transform.position).normalized;
+                transform.position += (Vector3)dir * spinPhase3ExtraSpeedTowardsPlayer * Time.deltaTime;
+            }
+            if (playerTarget!=null && Vector2.Distance(transform.position, playerTarget.position) <= spinRadius)
+            {
+                var pc = playerTarget.GetComponent<PlayerController>();
+                if (pc!=null)
+                {
+                    pc.TakeDamage(spinDamage, "unblockable");
+                }
+            }
+            timer += Time.deltaTime;
+            yield return null;
+        }
+        isSpinning = false;
+    }
+
+    private IEnumerator ReturnToStartPosition()
+    {
+        float speed = 6f;
+        while (Vector2.Distance(transform.position, startPosition) > 0.05f)
+        {
+            Vector2 dir = ((Vector2)startPosition - (Vector2)transform.position).normalized;
+            transform.position += (Vector3)dir * speed * Time.deltaTime;
+            yield return null;
         }
     }
 
-    // Eski generic melee attack fonksiyonları (PerformMeleeAttack / PerformSpinAttack) kullanılıyorsa
-    // bunları artık iki parçalı sisteme geçiş için basitleştiriyoruz veya ileride tamamen kaldırılabilir
-    
-    private IEnumerator PerformSpinAttack(string attackType = "spin", bool isFullSpinAttack = true)
+    private void Phase2Behavior()
     {
-        if (isFullSpinAttack)
+        // Minyon spawn periyodu
+        if (Time.time >= nextMinionSpawnTime)
         {
-            // Gerçek spin attack - uzun şarj süresli
-            Debug.Log("Boss charging spin attack!");
-            isCharging = true;
-            
-            // 3 saniye şarj
-            yield return new WaitForSeconds(3f);
-            
-            if (isStunned) yield break;
-            
-            Debug.Log("Boss executing spin attack!");
-            isSpinning = true;
-            
-            // Spin saldırısı - savunulamaz
-            float spinDuration = 2f;
-            float spinTimer = 0f;
-            float spinRadius = 4f;
-            
-            while (spinTimer < spinDuration)
+            SpawnMinions();
+            nextMinionSpawnTime = Time.time + Mathf.Max(2f, minionSpawnCooldown);
+        }
+        // Faz 1 davranışını da kısmen sürdür
+        Phase1Behavior();
+    }
+
+    private void Phase3Behavior()
+    {
+        // Daha agresif: daha kısa aralıklarla fireball/dash
+        phase1FireballIntervalRange = new Vector2(0.35f, 0.8f);
+        fireballsBeforeDashMin = 3;
+        fireballsBeforeDashMax = 5;
+        Phase1Behavior();
+    }
+
+    private void PlayMeleeAnimation(string anim)
+    {
+        if (animator != null && !string.IsNullOrEmpty(anim))
+        {
+            animator.Play(anim);
+        }
+    }
+
+    public override void OnPlayerParry()
+    {
+        // Faz 3'te combo gerekir
+        if (currentPhase >= 3)
+        {
+            currentComboCount++;
+            if (currentComboCount >= comboRequiredForStun)
             {
-                // Boss'u döndür
-                transform.Rotate(0f, 0f, 720f * Time.deltaTime); // Çok hızlı dönüş
-                
-                // Player spin aralığında mı kontrol et
-                if (Vector2.Distance(transform.position, playerTarget.position) <= spinRadius)
-                {
-                    PlayerController player = playerTarget.GetComponent<PlayerController>();
-                    if (player != null)
-                    {
-                        player.TakeDamage(50f, "unblockable");
-                    }
-                }
-                
-                spinTimer += Time.deltaTime;
-                yield return null;
+                currentComboCount = 0;
+                StartCoroutine(ParryStunRoutine());
             }
-            
-            isCharging = false;
-            isSpinning = false;
         }
         else
         {
-            // Normal melee attack - döner saldırı
-            Debug.Log($"Boss performing spinning {attackType} attack!");
-            
-            float attackDuration = 0.8f;
-            float rotationSpeed = 360f; // Saniyede 360 derece dönüş
-            float elapsed = 0f;
-            
-            while (elapsed < attackDuration)
-            {
-                // Boss'u döndür
-                transform.Rotate(0f, rotationSpeed * Time.deltaTime, 0f);
-                
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-            
-            // Player'a hasar ver
-            if (Vector2.Distance(transform.position, playerTarget.position) <= 3f)
-            {
-                PlayerController player = playerTarget.GetComponent<PlayerController>();
-                if (player != null)
-                {
-                    player.TakeDamage(30f, attackType);
-                }
-            }
+            StartCoroutine(ParryStunRoutine());
         }
     }
-    
-    private IEnumerator ReturnToStartPosition()
-    {
-        Debug.Log("Boss returning to start position!");
-        
-        Vector2 returnDirection = ((Vector2)startPosition - (Vector2)transform.position).normalized;
-        float returnSpeed = 8f;
-        
-        while (Vector2.Distance(transform.position, startPosition) > 0.5f)
-        {
-            transform.position += (Vector3)returnDirection * returnSpeed * Time.deltaTime;
-            returnDirection = ((Vector2)startPosition - (Vector2)transform.position).normalized;
-            yield return null;
-        }
-        
-        transform.position = startPosition;
-    }
-    
-    // ========== PHASE 2 ==========
+
     private void StartPhase2()
     {
         currentPhase = 2;
         Debug.Log("BOSS PHASE 2 STARTED!");
-        // Phase 2 animasyonu buraya eklenebilir
+        if (animator!=null && !string.IsNullOrEmpty(phase2TransitionAnim)) animator.Play(phase2TransitionAnim);
+        canTakeDamage = true; // Artık hasar alınabilir
     }
     
-    private void Phase2Behavior()
-    {
-        // Phase 1 davranışları + minion spawn
-        Phase1Behavior();
-        
-        // Minion spawn
-        if (Time.time - lastMinionSpawnTime >= minionSpawnCooldown)
-        {
-            SpawnMinions();
-            lastMinionSpawnTime = Time.time;
-        }
-    }
-    
-    private void SpawnMinions()
-    {
-        if (minionPrefab == null) return;
-        
-        // 2-3 minion spawn yap
-        int minionCount = Random.Range(2, 4);
-        
-        for (int i = 0; i < minionCount; i++)
-        {
-            // Boss'un yanında spawn et
-            Vector3 spawnOffset = new Vector3(Random.Range(-1f, 1f), Random.Range(0.5f, 1.5f), 0);
-            Vector3 spawnPosition = transform.position + spawnOffset;
-            
-            GameObject minion = Instantiate(minionPrefab, spawnPosition, Quaternion.identity);
-            
-            // Boss ile minion arasında collision'ı kapat
-            Collider2D bossCollider = GetComponent<Collider2D>();
-            Collider2D minionCollider = minion.GetComponent<Collider2D>();
-            if (bossCollider != null && minionCollider != null)
-            {
-                Physics2D.IgnoreCollision(bossCollider, minionCollider, true);
-                Debug.Log("Boss-Minion collision ignored");
-            }
-            
-            // Diğer minion'larla da collision'ı kapat
-            MinionEnemy[] existingMinions = FindObjectsOfType<MinionEnemy>();
-            foreach (MinionEnemy existingMinion in existingMinions)
-            {
-                if (existingMinion.gameObject != minion) // Kendisi ile değil
-                {
-                    Collider2D existingMinionCollider = existingMinion.GetComponent<Collider2D>();
-                    if (existingMinionCollider != null && minionCollider != null)
-                    {
-                        Physics2D.IgnoreCollision(minionCollider, existingMinionCollider, true);
-                        Debug.Log("Minion-Minion collision ignored");
-                    }
-                }
-            }
-            
-            // Minion'un attachable layer'larını al
-            MinionEnemy minionScript = minion.GetComponent<MinionEnemy>();
-            LayerMask attachableLayers = -1; // Default olarak tüm layer'lar
-            if (minionScript != null)
-            {
-                attachableLayers = minionScript.attachableLayers;
-            }
-            
-            // Yapışılabilen bir yüzey bul ve o yöne fırlat
-            Vector2 throwDirection = FindBestThrowDirection(spawnPosition, attachableLayers);
-            
-            Rigidbody2D minionRb = minion.GetComponent<Rigidbody2D>();
-            if (minionRb == null) 
-                minionRb = minion.AddComponent<Rigidbody2D>();
-            
-            float throwForce = Random.Range(10f, 15f);
-            minionRb.AddForce(throwDirection * throwForce, ForceMode2D.Impulse);
-            
-            // Minion'u 15 saniye sonra yok et (eğer player öldürmezse)
-            Destroy(minion, 15f);
-            
-            Debug.Log($"Boss threw minion towards attachable surface in direction: {throwDirection}!");
-        }
-    }
-    
-    private Vector2 FindBestThrowDirection(Vector3 spawnPos, LayerMask attachableLayers)
-    {
-        float scanRadius = 15f; // Tarama mesafesi
-        int rayCount = 24; // 24 farklı yöne ray at (360/24 = 15 derece aralıklar)
-        
-        Vector2 bestDirection = Vector2.right; // Varsayılan yön
-        bool foundAttachableSurface = false;
-        
-        // Kullanılabilir yönleri topla
-        List<Vector2> availableDirections = new List<Vector2>();
-        
-        for (int i = 0; i < rayCount; i++)
-        {
-            // 360 dereceyi ray sayısına böl
-            float angle = (360f / rayCount) * i;
-            Vector2 rayDirection = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad));
-            
-            // Raycast at
-            RaycastHit2D hit = Physics2D.Raycast(spawnPos, rayDirection, scanRadius, attachableLayers);
-            
-            if (hit.collider != null)
-            {
-                foundAttachableSurface = true;
-                
-                // Uygun mesafedeki tüm yönleri kaydet (çok yakın olmasın)
-                if (hit.distance > 3f)
-                {
-                    availableDirections.Add(rayDirection);
-                }
-                
-                // Debug için ray çiz
-                Debug.DrawRay(spawnPos, rayDirection * hit.distance, Color.green, 2f);
-            }
-            else
-            {
-                // Hiçbir şeye çarpmayan ray'ler
-                Debug.DrawRay(spawnPos, rayDirection * scanRadius, Color.red, 1f);
-            }
-        }
-        
-        if (availableDirections.Count > 0)
-        {
-            // Rastgele bir uygun yön seç
-            bestDirection = availableDirections[Random.Range(0, availableDirections.Count)];
-            Debug.Log($"Selected random direction from {availableDirections.Count} available directions");
-        }
-        else if (!foundAttachableSurface)
-        {
-            // Hiç yapışılabilen yüzey bulunamadıysa, geniş açıda rastgele yön
-            float randomAngle = Random.Range(0f, 360f);
-            bestDirection = new Vector2(Mathf.Cos(randomAngle * Mathf.Deg2Rad), Mathf.Sin(randomAngle * Mathf.Deg2Rad));
-            Debug.Log("No attachable surface found, throwing in wide random direction");
-        }
-        
-        return bestDirection;
-    }
-    
-    // ========== PHASE 3 ==========
     private void StartPhase3()
     {
         currentPhase = 3;
         currentComboCount = 0;
         Debug.Log("BOSS PHASE 3 STARTED!");
-        // Phase 3 animasyonu buraya eklenebilir
+        if (animator!=null && !string.IsNullOrEmpty(phase3TransitionAnim)) animator.Play(phase3TransitionAnim);
     }
-    
-    private void Phase3Behavior()
+
+    private void SpawnMinions()
     {
-        // Enhanced behavior - daha hızlı saldırılar
-        Phase2Behavior(); // Tüm önceki davranışları korur
-    }
-    
-    // ========== PARRY SYSTEM ==========
-    public override void OnPlayerParry()
-    {
-        if (currentPhase == 3)
+        if (minionPrefab == null) return;
+        
+        int minionCount = Random.Range(2, 4);
+        
+        for (int i = 0; i < minionCount; i++)
         {
-            currentComboCount++;
-            Debug.Log($"Boss parried! Combo: {currentComboCount}/{comboRequiredForStun}");
-            
-            if (currentComboCount >= comboRequiredForStun)
+            Vector3 spawnOffset = new Vector3(Random.Range(-1f,1f), Random.Range(0.5f,1.5f),0);
+            Vector3 spawnPosition = transform.position + spawnOffset;
+            GameObject minion = Instantiate(minionPrefab, spawnPosition, Quaternion.identity);
+            // Minyonu shooter yap
+            var shooter = minion.GetComponent<BossMinionShooter>();
+            if (shooter == null)
             {
-                StartCoroutine(Stun());
-                currentComboCount = 0;
+                shooter = minion.AddComponent<BossMinionShooter>();
+                shooter.fireballPrefab = (Random.value>0.5f) ? redFireballPrefab : blueFireballPrefab;
+                shooter.minShootInterval = 0.5f;
+                shooter.maxShootInterval = 1.0f;
+                shooter.lifeTime = 10f;
+                shooter.target = playerTarget;
             }
-        }
-        else
-        {
-            // Phase 1-2'de her parry stun yapar
-            StartCoroutine(Stun());
+            // ...existing code...
         }
     }
-    
-    private IEnumerator Stun()
+
+    public override void TakeDamage(float dmg)
     {
-        isStunned = true;
-        Debug.Log("Boss is stunned!");
-        
-        // Tüm saldırıları durdur
-        StopAllCoroutines();
-        isCharging = false;
-        isSpinning = false;
-        
-        yield return new WaitForSeconds(1f);
-        
-        isStunned = false;
-        Debug.Log("Boss recovered from stun!");
-    }
-    
-    protected override void Die()
-    {
-        Debug.Log("BOSS DEFEATED!");
-        
-        // Player'a dash yeteneği ver
-        PlayerController player = FindObjectOfType<PlayerController>();
-        if (player != null)
-        {
-            player.UnlockDash();
-        }
-        
-        base.Die();
+        if (currentPhase==1 && phase1Invulnerable) return; // Faz1 dokunulmazsa
+        base.TakeDamage(dmg);
     }
     
     // Debug görselleştirme
@@ -663,5 +558,54 @@ public class BossEnemy : BaseEnemy
         // Melee range
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, 3f);
+    }
+}
+
+// Local shooter component for Phase 2 minions
+public class BossMinionShooter : MonoBehaviour
+{
+    public GameObject fireballPrefab;
+    public float minShootInterval = 0.5f;
+    public float maxShootInterval = 1.0f;
+    public float bulletSpeed = 7f;
+    public float lifeTime = 10f;
+    public Transform target;
+
+    private float nextShootTime = 0f;
+
+    private void Start()
+    {
+        if (lifeTime > 0)
+            Destroy(gameObject, lifeTime);
+        ScheduleNext();
+    }
+
+    private void Update()
+    {
+        if (target == null || fireballPrefab == null) return;
+        if (Time.time >= nextShootTime)
+        {
+            Shoot();
+            ScheduleNext();
+        }
+    }
+
+    private void ScheduleNext()
+    {
+        nextShootTime = Time.time + Random.Range(minShootInterval, maxShootInterval);
+    }
+
+    private void Shoot()
+    {
+        Vector2 dir = ((Vector2)target.position - (Vector2)transform.position).normalized;
+        GameObject proj = Instantiate(fireballPrefab, transform.position, Quaternion.identity);
+        var rb = proj.GetComponent<Rigidbody2D>();
+        if (rb == null) rb = proj.AddComponent<Rigidbody2D>();
+        rb.gravityScale = 0f;
+        rb.velocity = dir * bulletSpeed;
+        var pc = proj.GetComponent<ProjectileController>();
+        if (pc == null) pc = proj.AddComponent<ProjectileController>();
+        pc.damage = 10f;
+        Destroy(proj, 5f);
     }
 }
