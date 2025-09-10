@@ -16,13 +16,9 @@ public class BossEnemy : BaseEnemy
     
     [Header("Boss Stats")]
     public float phase1Health = 100f;
-    public float phase2Health = 70f;
-    public float phase3Health = 40f;
     
     [Header("Phase 1 - Ranged")]
     public GameObject fireballPrefab;
-    public float fireballCooldown = 2f;
-    public int fireballCount = 5; // Kaç ateş topu atacak
     // Ek: Kırmızı/Mavi fireball ve interval aralığı
     [Header("Ranged Fireballs")]
     public GameObject redFireballPrefab;
@@ -59,9 +55,16 @@ public class BossEnemy : BaseEnemy
     public string phase2TransitionAnim = "BossPhase2Transition";
     public string phase3TransitionAnim = "BossPhase3Transition";
 
+    [Header("Leap To Target")]
+    public Transform leapTarget;
+    public bool leapOnStart = false;
+    [Tooltip("Atlayışın toplam süresi (s)")] public float leapDuration = 0.8f;
+    [Tooltip("Parabolün tepe yüksekliği (dikey ek)")] public float leapArcHeight = 2.5f;
+    [Tooltip("Atlayışta hedefe bakacak şekilde sprite'ı çevir")] public bool faceTowardsLeapTarget = true;
+    private bool isLeaping = false;
+
     // Internal flags
     private bool performingMeleeSequence = false;
-    private bool doingSpin = false;
     private bool isStunned = false;
     private bool isCharging = false;
     private bool isSpinning = false;
@@ -78,6 +81,13 @@ public class BossEnemy : BaseEnemy
 
     // Timers
     private float nextMinionSpawnTime = 0f;
+
+    [Header("Speeds & Damage")]
+    [SerializeField] private float rangedFireballSpeed = 8f;
+    [SerializeField] private float rangedFireballDamage = 25f;
+    [SerializeField] private float dashSpeed = 12f;
+    [SerializeField] private float dashTime = 1.0f;
+    [SerializeField] private float spinRotateSpeed = 720f;
 
     protected override void Start()
     {
@@ -102,11 +112,16 @@ public class BossEnemy : BaseEnemy
         playerTarget = GameObject.FindWithTag("Player")?.transform;
         
         StartPhase1();
+
+        if (leapOnStart && leapTarget != null)
+        {
+            LeapToTarget();
+        }
     }
 
     protected override void Update()
     {
-        if (isStunned || !canMove) return;
+    if (isStunned || !canMove) return;
 
         // Manuel faz geçiş kontrolü (test için)
         HandleManualPhaseControls();
@@ -125,39 +140,25 @@ public class BossEnemy : BaseEnemy
                 Phase3Behavior();
                 break;
         }
+        #if UNITY_EDITOR
+        #if UNITY_EDITOR
         if (Input.GetKeyDown(KeyCode.H))
         {
             SpawnMinions();
-         }
+        }
+        #endif
+        #endif
     }
     
     private void HandleManualPhaseControls()
     {
-        // 1 tuşu - Faz 1'e geç
-        if (Input.GetKeyDown(KeyCode.Alpha1))
-        {
-            ForcePhase(1);
-        }
-        // 2 tuşu - Faz 2'ye geç
-        else if (Input.GetKeyDown(KeyCode.Alpha2))
-        {
-            ForcePhase(2);
-        }
-        // 3 tuşu - Faz 3'e geç
-        else if (Input.GetKeyDown(KeyCode.Alpha3))
-        {
-            ForcePhase(3);
-        }
-        // R tuşu - Boss'u resetle (full HP)
-        else if (Input.GetKeyDown(KeyCode.R))
-        {
-            ResetBoss();
-        }
-        // K tuşu - Boss'u öldür (test için)
-        else if (Input.GetKeyDown(KeyCode.K))
-        {
-            KillBoss();
-        }
+        #if UNITY_EDITOR
+        if (Input.GetKeyDown(KeyCode.Alpha1)) { ForcePhase(1); }
+        else if (Input.GetKeyDown(KeyCode.Alpha2)) { ForcePhase(2); }
+        else if (Input.GetKeyDown(KeyCode.Alpha3)) { ForcePhase(3); }
+        else if (Input.GetKeyDown(KeyCode.R)) { ResetBoss(); }
+        else if (Input.GetKeyDown(KeyCode.K)) { KillBoss(); }
+        #endif
     }
     
     private void ForcePhase(int phaseNumber)
@@ -266,7 +267,7 @@ public class BossEnemy : BaseEnemy
     {
         if (playerTarget == null) return;
         GameObject prefabToUse = null;
-        if (redFireballPrefab != null && blueFireballPrefab != null)
+    if (redFireballPrefab != null && blueFireballPrefab != null)
             prefabToUse = (Random.value > 0.5f) ? redFireballPrefab : blueFireballPrefab;
         else
             prefabToUse = fireballPrefab; // geri dönüş
@@ -279,11 +280,11 @@ public class BossEnemy : BaseEnemy
         Rigidbody2D rb = fireball.GetComponent<Rigidbody2D>();
         if (rb == null) rb = fireball.AddComponent<Rigidbody2D>();
         rb.gravityScale = 0f;
-        rb.velocity = randomDirection.normalized * 8f;
+    rb.velocity = randomDirection.normalized * rangedFireballSpeed;
         
         ProjectileController projectile = fireball.GetComponent<ProjectileController>();
         if (projectile == null) projectile = fireball.AddComponent<ProjectileController>();
-        projectile.damage = 25f;
+    projectile.damage = rangedFireballDamage;
         projectile.caster = this;
         Destroy(fireball, 5f);
     }
@@ -292,17 +293,10 @@ public class BossEnemy : BaseEnemy
     {
         if (playerTarget == null) yield break;
         performingMeleeSequence = true;
-        Debug.Log("Boss dashing to player for melee!");
-        Vector2 dashDir = ((Vector2)playerTarget.position - (Vector2)transform.position).normalized;
-        float dashSpeed = 12f;
-        float dashTime = 1.0f;
-        float t=0f;
-        while (t<dashTime)
-        {
-            transform.position += (Vector3)dashDir * dashSpeed * Time.deltaTime;
-            t += Time.deltaTime;
-            yield return null;
-        }
+        Debug.Log("Boss leaping to player for melee!");
+        Vector2 destination = playerTarget.position;
+        LeapToPosition(destination);
+        yield return new WaitUntil(() => isLeaping == false);
         // Melee pattern: random sayıda saldırı + belki spin dahil
         yield return StartCoroutine(ExecuteMeleePattern());
         // Geri dön
@@ -418,7 +412,7 @@ public class BossEnemy : BaseEnemy
         float timer = 0f;
         while (timer < spinDuration)
         {
-            transform.Rotate(0f,0f,720f*Time.deltaTime);
+            transform.Rotate(0f,0f,spinRotateSpeed*Time.deltaTime);
             if (currentPhase==3 && playerTarget!=null)
             {
                 // Phase3: hafif homing
@@ -525,18 +519,67 @@ public class BossEnemy : BaseEnemy
             Vector3 spawnPosition = transform.position + spawnOffset;
             GameObject minion = Instantiate(minionPrefab, spawnPosition, Quaternion.identity);
             // Minyonu shooter yap
-            var shooter = minion.GetComponent<BossMinionShooter>();
+            var shooter = minion.GetComponent<MinionShooter>();
             if (shooter == null)
             {
-                shooter = minion.AddComponent<BossMinionShooter>();
+                shooter = minion.AddComponent<MinionShooter>();
                 shooter.fireballPrefab = (Random.value>0.5f) ? redFireballPrefab : blueFireballPrefab;
-                shooter.minShootInterval = 0.5f;
-                shooter.maxShootInterval = 1.0f;
+                shooter.minShootInterval = 2f;
+                shooter.maxShootInterval = 3f;
                 shooter.lifeTime = 10f;
                 shooter.target = playerTarget;
             }
             // ...existing code...
         }
+    }
+
+    // ================== LEAP API ==================
+    [ContextMenu("Boss -> Leap To Target")]
+    public void LeapToTarget()
+    {
+        if (leapTarget == null || isLeaping) return;
+        LeapToPosition(leapTarget.position);
+    }
+
+    public void LeapToPosition(Vector2 destination)
+    {
+        if (isLeaping) return;
+        StartCoroutine(ParabolicLeapRoutine(destination, leapDuration, leapArcHeight));
+    }
+
+    private IEnumerator ParabolicLeapRoutine(Vector2 destination, float duration, float arcHeight)
+    {
+        isLeaping = true;
+        bool prevCanMove = canMove;
+        canMove = false;
+
+        Vector2 start = transform.position;
+        float t = 0f;
+        duration = Mathf.Max(0.05f, duration);
+
+        if (faceTowardsLeapTarget)
+        {
+            float dir = Mathf.Sign(destination.x - start.x);
+            if (dir > 0f) transform.localScale = new Vector3(1f, 1f, 1f);
+            else if (dir < 0f) transform.localScale = new Vector3(-1f, 1f, 1f);
+        }
+
+        while (t < 1f)
+        {
+            t += Time.deltaTime / duration;
+            float clamped = Mathf.Clamp01(t);
+            // Lineer ara nokta
+            Vector2 pos = Vector2.Lerp(start, destination, clamped);
+            // Parabolik dikey ek: 4*t*(1-t) 0..1..0 arası tepe 0.5
+            float arc = 4f * clamped * (1f - clamped);
+            pos.y += arc * arcHeight;
+            transform.position = pos;
+            yield return null;
+        }
+        transform.position = destination;
+
+        canMove = prevCanMove;
+        isLeaping = false;
     }
 
     public override void TakeDamage(float dmg)
@@ -552,60 +595,19 @@ public class BossEnemy : BaseEnemy
         if (isCharging || isSpinning)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawWireSphere(transform.position, 4f);
+            Gizmos.DrawWireSphere(transform.position, spinRadius);
         }
         
         // Melee range
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(transform.position, 3f);
-    }
-}
+        Gizmos.DrawWireSphere(transform.position, Mathf.Max(upperAttackRange, lowerAttackRange));
 
-// Local shooter component for Phase 2 minions
-public class BossMinionShooter : MonoBehaviour
-{
-    public GameObject fireballPrefab;
-    public float minShootInterval = 0.5f;
-    public float maxShootInterval = 1.0f;
-    public float bulletSpeed = 7f;
-    public float lifeTime = 10f;
-    public Transform target;
-
-    private float nextShootTime = 0f;
-
-    private void Start()
-    {
-        if (lifeTime > 0)
-            Destroy(gameObject, lifeTime);
-        ScheduleNext();
-    }
-
-    private void Update()
-    {
-        if (target == null || fireballPrefab == null) return;
-        if (Time.time >= nextShootTime)
+        // Leap target gizmos
+        if (leapTarget != null)
         {
-            Shoot();
-            ScheduleNext();
+            Gizmos.color = new Color(1f, 0.2f, 0.6f, 0.9f);
+            Gizmos.DrawWireSphere(leapTarget.position, 0.25f);
+            Gizmos.DrawLine(transform.position, leapTarget.position);
         }
-    }
-
-    private void ScheduleNext()
-    {
-        nextShootTime = Time.time + Random.Range(minShootInterval, maxShootInterval);
-    }
-
-    private void Shoot()
-    {
-        Vector2 dir = ((Vector2)target.position - (Vector2)transform.position).normalized;
-        GameObject proj = Instantiate(fireballPrefab, transform.position, Quaternion.identity);
-        var rb = proj.GetComponent<Rigidbody2D>();
-        if (rb == null) rb = proj.AddComponent<Rigidbody2D>();
-        rb.gravityScale = 0f;
-        rb.velocity = dir * bulletSpeed;
-        var pc = proj.GetComponent<ProjectileController>();
-        if (pc == null) pc = proj.AddComponent<ProjectileController>();
-        pc.damage = 10f;
-        Destroy(proj, 5f);
     }
 }
