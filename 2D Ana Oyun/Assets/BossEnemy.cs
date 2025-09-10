@@ -121,13 +121,21 @@ public class BossEnemy : BaseEnemy
 
     protected override void Update()
     {
-    if (isStunned || !canMove) return;
-
-        // Manuel faz geçiş kontrolü (test için)
+        if (isStunned || !canMove) return;
+        
         HandleManualPhaseControls();
+        HandlePhaseTransitions();
+        ExecutePhaseBehavior();
+        HandleEditorShortcuts();
+    }
 
+    private void HandlePhaseTransitions()
+    {
         CheckPhaseTransition();
+    }
 
+    private void ExecutePhaseBehavior()
+    {
         switch (currentPhase)
         {
             case 1:
@@ -140,13 +148,15 @@ public class BossEnemy : BaseEnemy
                 Phase3Behavior();
                 break;
         }
-        #if UNITY_EDITOR
+    }
+
+    private void HandleEditorShortcuts()
+    {
         #if UNITY_EDITOR
         if (Input.GetKeyDown(KeyCode.H))
         {
             SpawnMinions();
         }
-        #endif
         #endif
     }
     

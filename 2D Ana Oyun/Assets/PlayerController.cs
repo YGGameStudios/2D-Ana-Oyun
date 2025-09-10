@@ -187,8 +187,7 @@ public class PlayerController : MonoBehaviour
             {
                 Debug.Log($"Interacting with {enemy.enemyName}");
                 
-                // Enemy kontrollerini değiştir
-                enemy.SetCanMove(!enemy.canMove);
+                enemy.canMove = !enemy.canMove;
                 Debug.Log($"{enemy.enemyName} movement: {enemy.canMove}");
             }
         }

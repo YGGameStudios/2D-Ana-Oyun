@@ -35,7 +35,7 @@ public class ChargerEnemy : BaseEnemy
     private void StartChargeAttack()
     {
         isCharging = true;
-        SetCanMove(false); // Hareket durdur
+        canMove = false;// Hareket durdur
         
         Debug.Log($"{enemyName} starts charging!");
         
@@ -60,7 +60,7 @@ public class ChargerEnemy : BaseEnemy
     private void EndCharge()
     {
         isCharging = false;
-        SetCanMove(true); // Hareket tekrar aktif
+        canMove = true;// Hareket tekrar aktif
         Debug.Log($"{enemyName} charge ended!");
     }
     

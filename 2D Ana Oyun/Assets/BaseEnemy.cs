@@ -37,18 +37,38 @@ public class BaseEnemy : MonoBehaviour
     {
         if (!canMove || target == null) return;
         
-        // Basit hareket - hedefe doğru git (2D)
-        Vector2 direction = ((Vector2)target.position - (Vector2)transform.position).normalized;
+        Vector2 direction = GetDirectionToTarget();
+        MoveTowards(direction);
+        UpdateSpriteFacing(direction);
+        TryAttack();
+    }
+    
+    protected virtual Vector2 GetDirectionToTarget()
+    {
+        return ((Vector2)target.position - (Vector2)transform.position).normalized;
+    }
+    
+    protected virtual void MoveTowards(Vector2 direction)
+    {
         transform.position += (Vector3)direction * moveSpeed * Time.deltaTime;
-        
-        // Sprite'ı hedefe doğru çevir (2D)
+    }
+    
+    protected virtual void UpdateSpriteFacing(Vector2 direction)
+    {
         if (direction.x > 0)
             transform.localScale = new Vector3(1, 1, 1); // Sağa bak
         else if (direction.x < 0)
             transform.localScale = new Vector3(-1, 1, 1); // Sola bak
-        
-        // Yakınsa saldır (2D mesafe)
-        if (Vector2.Distance(transform.position, target.position) < 2f && canAttack)
+    }
+    
+    protected virtual bool IsInAttackRange()
+    {
+        return target != null && Vector2.Distance(transform.position, target.position) < 2f;
+    }
+    
+    protected virtual void TryAttack()
+    {
+        if (canAttack && IsInAttackRange())
         {
             Attack();
         }
@@ -106,11 +126,6 @@ public class BaseEnemy : MonoBehaviour
             Debug.Log($"{enemyName} copied {abilityToCopy.abilityName} from {otherEnemy.enemyName}");
         }
     }
-    
-    // Kontrol değiştirme metodları - alt sınıflarda kullanılabilir
-    public void SetCanMove(bool value) { canMove = value; }
-    public void SetCanAttack(bool value) { canAttack = value; }
-    public void SetCanTakeDamage(bool value) { canTakeDamage = value; }
     
     // Parry sistemi için - alt sınıflarda override edilebilir
     public virtual void OnPlayerParry()
