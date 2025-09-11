@@ -9,6 +9,8 @@ public class ChargerEnemy : BaseEnemy
     
     private bool isCharging = false;
     
+    
+    
     protected override void Update()
     {
         // Özel hareket kontrolü
@@ -16,7 +18,7 @@ public class ChargerEnemy : BaseEnemy
         {
             moveSpeed = 5f; // Hızlı hareket
         }
-        
+
         base.Update(); // Ana hareket sistemi
     }
     
