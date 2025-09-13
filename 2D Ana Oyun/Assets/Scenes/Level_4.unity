@@ -36530,6 +36530,7 @@ GameObject:
   - component: {fileID: 1556264002}
   - component: {fileID: 1556264004}
   - component: {fileID: 1556264005}
+  - component: {fileID: 1556264006}
   m_Layer: 0
   m_Name: Boss
   m_TagString: Untagged
@@ -36559,6 +36560,10 @@ MonoBehaviour:
   leapKey: 101
   autoLeap: 1
   leapInterval: 8
+  wallMinionSkill: {fileID: 0}
+  wallMinionKey: 113
+  autoWallMinion: 1
+  wallMinionInterval: 10
 --- !u!212 &1556264000
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -36739,6 +36744,33 @@ MonoBehaviour:
   gizmoHitColor: {r: 1, g: 0.2, b: 0.2, a: 0.9}
   gizmoKnockbackColor: {r: 1, g: 0.2, b: 1, a: 0.9}
   gizmoProbeColor: {r: 0.9, g: 0.4, b: 1, a: 0.9}
+--- !u!114 &1556264006
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1556263998}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e789aeb7f66e4902bb60d11cfb94ee7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  cooldown: 0.5
+  firePoint: {fileID: 2111830550}
+  minionPrefab: {fileID: 4796197971106690214, guid: 7301f258faf404e369bf3b0b9b4dd738, type: 3}
+  wallMask:
+    serializedVersion: 2
+    m_Bits: 1024
+  scanRadius: 17.81
+  scanRays: 16
+  minDotToForward: -1
+  drawGizmos: 1
+  gizmoScanColor: {r: 1, g: 0.92, b: 0.16, a: 0.85}
+  gizmoRayHitColor: {r: 1, g: 0.4, b: 0.2, a: 0.95}
+  gizmoRayMissColor: {r: 1, g: 1, b: 1, a: 0.2}
+  gizmoBestColor: {r: 0.1, g: 1, b: 0.3, a: 1}
+  gizmoForwardColor: {r: 0.2, g: 0.8, b: 1, a: 0.9}
 --- !u!4 &1574718209 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8957807871236849631, guid: 88d101a28b028154cbd46f8a117701c2, type: 3}
@@ -37947,6 +37979,118 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 88d101a28b028154cbd46f8a117701c2, type: 3}
+--- !u!1 &1978597112
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1978597116}
+  - component: {fileID: 1978597115}
+  - component: {fileID: 1978597114}
+  - component: {fileID: 1978597113}
+  m_Layer: 10
+  m_Name: WallTest
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!61 &1978597113
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1978597112}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: -23.62, y: 9.541881}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  serializedVersion: 2
+  m_Size: {x: 2.3895988, y: 20.083761}
+  m_EdgeRadius: 0
+--- !u!61 &1978597114
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1978597112}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: 13.201147, y: 9.541881}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  serializedVersion: 2
+  m_Size: {x: 2.3895988, y: 20.083761}
+  m_EdgeRadius: 0
+--- !u!61 &1978597115
+BoxCollider2D:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1978597112}
+  m_Enabled: 1
+  m_Density: 1
+  m_Material: {fileID: 0}
+  m_IsTrigger: 1
+  m_UsedByEffector: 0
+  m_UsedByComposite: 0
+  m_Offset: {x: -5.2804565, y: 18.111046}
+  m_SpriteTilingProperty:
+    border: {x: 0, y: 0, z: 0, w: 0}
+    pivot: {x: 0, y: 0}
+    oldSize: {x: 0, y: 0}
+    newSize: {x: 0, y: 0}
+    adaptiveTilingThreshold: 0
+    drawMode: 0
+    adaptiveTiling: 0
+  m_AutoTiling: 0
+  serializedVersion: 2
+  m_Size: {x: 38.982246, y: 2.389595}
+  m_EdgeRadius: 0
+--- !u!4 &1978597116
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1978597112}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: -38.269897, y: -7.0836277, z: -0.3073488}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 21
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &1995867974 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 8206900930508860522, guid: 27970251a5f2c9247aa7ef7b2edb9c5f, type: 3}

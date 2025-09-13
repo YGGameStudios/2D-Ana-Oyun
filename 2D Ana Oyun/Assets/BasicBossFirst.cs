@@ -5,6 +5,7 @@ using UnityEngine;
 
 public class BasicBossFirst : BasicBaseEnemy
 {
+    
     public Transform target;
     public TargetedShootSkill targetedShootSkill;
     public bool autoFire = true;
@@ -14,6 +15,13 @@ public class BasicBossFirst : BasicBaseEnemy
     public KeyCode leapKey = KeyCode.E; // manual test
     public bool autoLeap = true;
     public float leapInterval = 8f;
+
+    // Wall minion as a Skill (no hard reference to specific type)
+    public Skill wallMinionSkill;
+    public KeyCode wallMinionKey = KeyCode.Q; // manual trigger
+    public bool autoWallMinion = true;
+    public float wallMinionInterval = 10f;
+    private float _nextWallMinionTime;
 
     private float _startTime;
     private float _nextAiLeapTime;
@@ -28,18 +36,21 @@ public class BasicBossFirst : BasicBaseEnemy
         {
             leapSkill = GetComponent<LeapChargeAoeSkill>();
         }
+        if (wallMinionSkill == null)
+        {
+            wallMinionSkill = GetComponent("WallMinionSkill") as Skill;
+        }
     }
 
     void Update()
     {
-        if (!autoFire || targetedShootSkill == null) return;
         if (Time.time - _startTime < initialDelay) return;
         if (target == null)
         {
             GameObject maybe = GameObject.FindWithTag("Player");
             if (maybe != null) target = maybe.transform;
         }
-        if (target != null)
+        if (autoFire && targetedShootSkill != null && target != null)
         {
             if (!targetedShootSkill.TryUseOn(target))
             {
@@ -69,6 +80,28 @@ public class BasicBossFirst : BasicBaseEnemy
                 if (target != null && leapSkill.TryUseOn(target))
                 {
                     _nextAiLeapTime = Time.time + leapInterval;
+                }
+            }
+        }
+
+        // Wall minion skill: key or AI interval
+        if (wallMinionSkill != null)
+        {
+            if (Input.GetKeyDown(wallMinionKey))
+            {
+                if (!wallMinionSkill.TryUseOn(target))
+                {
+                    wallMinionSkill.TryUse();
+                }
+            }
+            else if (autoWallMinion && Time.time >= _nextWallMinionTime)
+            {
+                bool used = false;
+                if (target != null) used = wallMinionSkill.TryUseOn(target);
+                if (!used) used = wallMinionSkill.TryUse();
+                if (used)
+                {
+                    _nextWallMinionTime = Time.time + wallMinionInterval;
                 }
             }
         }
