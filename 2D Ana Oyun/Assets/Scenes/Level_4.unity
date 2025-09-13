@@ -36762,9 +36762,18 @@ MonoBehaviour:
   wallMask:
     serializedVersion: 2
     m_Bits: 1024
+  fallbackBulletPrefab: {fileID: 0}
   scanRadius: 17.81
   scanRays: 16
   minDotToForward: -1
+  launchUpwardBias: 0.35
+  spawnCount: 3
+  angleSpreadDeg: 12
+  randomAngleJitterDeg: 32.84
+  randomUpBiasJitter: 2
+  memorySize: 12
+  minSeparation: 2
+  fartherBias: 1
   drawGizmos: 1
   gizmoScanColor: {r: 1, g: 0.92, b: 0.16, a: 0.85}
   gizmoRayHitColor: {r: 1, g: 0.4, b: 0.2, a: 0.95}
