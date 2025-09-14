@@ -8,6 +8,7 @@ public class WallMinionSkill : Skill
     public GameObject minionPrefab; // WallStickyMinion
     public LayerMask wallMask;
     public GameObject fallbackBulletPrefab; // used if minion has no bullet prefab set
+    public Transform returnPointOverride; // optional: where minions return
 
     [Header("Scan")]
     public float scanRadius = 12f;
@@ -78,6 +79,7 @@ public class WallMinionSkill : Skill
                 {
                     m.bulletPrefab = fallbackBulletPrefab;
                 }
+                if (returnPointOverride != null) m.returnPoint = returnPointOverride;
                 m.Launch(dir, transform);
                 any = true;
             }

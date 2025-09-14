@@ -17,6 +17,7 @@ public class WallStickyMinion : MonoBehaviour
     public LayerMask wallMask;
     public Transform boss;
     public Transform player;
+    public Transform returnPoint; // optional override for return destination
 
     [Header("Movement Speeds")]
     public float launchSpeed = 12f;
@@ -351,21 +352,22 @@ public class WallStickyMinion : MonoBehaviour
 
     void UpdateReturning()
     {
-        if (boss == null)
+        if (boss == null && returnPoint == null)
         {
             // No boss to return to; destroy self
             Destroy(gameObject);
             return;
         }
 
-        Vector2 toBoss = (Vector2)boss.position - (Vector2)transform.position;
+        Vector3 targetPos3 = returnPoint != null ? returnPoint.position : (boss != null ? boss.position : transform.position);
+        Vector2 toBoss = (Vector2)targetPos3 - (Vector2)transform.position;
         if (rb != null)
         {
             rb.velocity = toBoss.normalized * returnSpeed;
         }
         if (toBoss.magnitude <= 0.3f)
         {
-            // Reached boss
+            // Reached return target
             Destroy(gameObject);
         }
     }
@@ -404,7 +406,11 @@ public class WallStickyMinion : MonoBehaviour
 
     private void CompleteReturnToBoss()
     {
-        if (boss != null)
+        if (returnPoint != null)
+        {
+            transform.position = returnPoint.position;
+        }
+        else if (boss != null)
         {
             transform.position = boss.position;
         }

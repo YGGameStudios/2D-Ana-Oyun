@@ -80,6 +80,9 @@ public class LeapChargeAoeSkill : Skill
     private bool _debugProbeHasHit;
     private Vector2 _debugProbeHitPoint;
 
+    [Header("Return Point")]
+    public Transform returnPoint; // If set, return to this transform instead of the leap start position
+
     private void Awake()
     {
         _rb = GetComponent<Rigidbody2D>();
@@ -266,8 +269,9 @@ public class LeapChargeAoeSkill : Skill
         if (disableCollisionsDuringMove) SetCollidersEnabled(false);
         // Return with a parabolic descent as well
         _debugReturnStart = transform.position;
-        _debugReturnDest = start;
-        yield return MoveOverTime(transform.position, start, returnTravelTime, arcHeight);
+        Vector3 returnDest = (returnPoint != null) ? returnPoint.position : start;
+        _debugReturnDest = returnDest;
+        yield return MoveOverTime(transform.position, returnDest, returnTravelTime, arcHeight);
         if (disableCollisionsDuringMove) SetCollidersEnabled(true);
 
         // After returning, face target again if available
